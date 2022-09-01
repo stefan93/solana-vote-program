@@ -1,46 +1,9 @@
-import { PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, TransactionInstruction, VoteAccount } from "@solana/web3.js";
 import { CString} from "@solana/buffer-layout";
-import { serialize } from 'borsh';
-
-enum VoteInstructionType {
-    CreateVoting = 0,
-    Vote = 1
-}
-
-
-class VoteProgramInstruction {
-    instruction: VoteInstructionType;
-
-    constructor(data: {instruction: VoteInstructionType}) {
-      this.instruction = data.instruction;
-    }
-}
-
-class CreateVotingInstruction extends VoteProgramInstruction {
-  votingUid: String;
-    votingName: String;
-    votingOptions: VotingOption[];
-
-    constructor(data: {votingUid: String, votingName: String, votingOptions: VotingOption[]}) {
-      super({instruction: VoteInstructionType.CreateVoting})
-      this.votingUid = data.votingUid;
-      this.votingName = data.votingName;
-      this.votingOptions = data.votingOptions;
-    }
-}
-
-export class VotingOption {
-  counter: Number;
-  id: Number;
-  description: String;
-
-  constructor(data: {counter: Number, id: Number, description: String}) {
-    this.counter = data.counter;
-    this.id = data.id;
-    this.description = data.description;
-  }
-
-}
+import { deserialize, serialize } from 'borsh';
+import { CreateVotingInstruction, INSTRUCTION_SCHEMA, VoteInstructionType } from "./instructions";
+import { VotingOption } from "./instructions"
+import { ACCOUNT_SCHEMA, VotingAccount } from "./account";
 
 export class VoteProgram {
     
@@ -48,33 +11,9 @@ export class VoteProgram {
 
 
     static createVoting(votingUid: string, votingName: string, votingOptions: VotingOption[], owner: PublicKey) : TransactionInstruction {
-
-        const schema = new Map<any, any>([
-          [CreateVotingInstruction, 
-            { 
-                kind: 'struct', 
-                fields: [
-                  ['instruction', 'u8'], 
-                  ['votingUid', 'string'], 
-                  ['votingName', 'string'], 
-                  ['votingOptions',  [VotingOption] ]
-                ]
-            }, 
-          ],
-          [VotingOption,
-            {
-              kind: 'struct',
-              fields: [
-                ['counter', 'u32'],
-                ['id', 'u8'], 
-                ['description', 'string'] 
-              ]
-            }
-          ]
-        ]);
            
-        const buffer = serialize(schema, new CreateVotingInstruction({votingUid: votingUid, votingName: votingName, votingOptions: votingOptions}));
-        let pda = PublicKey.findProgramAddressSync([owner.toBytes()], this.programId)[0];
+        const buffer = serialize(INSTRUCTION_SCHEMA, new CreateVotingInstruction({votingUid: votingUid, votingName: votingName, votingOptions: votingOptions}));
+        let pda = this.getPdaPubkey(owner)[0];
 
         return new TransactionInstruction({
             programId: this.programId,
@@ -123,6 +62,15 @@ export class VoteProgram {
 
     static getPdaPubkey(votingOwner: PublicKey) : [PublicKey, number] {
       return PublicKey.findProgramAddressSync([votingOwner.toBytes()], this.programId);
+    }
+
+    static async readAccountData(connection: Connection, owner: PublicKey) : Promise<VotingAccount> {
+      let accInfo = await connection.getAccountInfo(VoteProgram.getPdaPubkey(owner)[0]);
+      if (accInfo == null) {
+        throw new Error("Account info is null");
+      }
+
+      return deserialize(ACCOUNT_SCHEMA, VotingAccount, accInfo.data);
     }
 }
 
