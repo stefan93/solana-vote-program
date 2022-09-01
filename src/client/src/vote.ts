@@ -1,5 +1,4 @@
-import { Connection, PublicKey, SystemProgram, TransactionInstruction, VoteAccount } from "@solana/web3.js";
-import { CString} from "@solana/buffer-layout";
+import { Connection, PublicKey, SystemProgram, TransactionInstruction } from "@solana/web3.js";
 import { deserialize, serialize } from 'borsh';
 import { CreateVotingInstruction, INSTRUCTION_SCHEMA, VoteInstructionType } from "./instructions";
 import { VotingOption } from "./instructions"
@@ -73,32 +72,3 @@ export class VoteProgram {
       return deserialize(ACCOUNT_SCHEMA, VotingAccount, accInfo.data);
     }
 }
-
-export function getAlloc(type: any, fields: any): number {
-    const getItemAlloc = (item: any): number => {
-      if (item.span >= 0) {
-        return item.span;
-      } else if (typeof item.alloc === 'function') {
-        return item.alloc(fields[item.property]);
-      } else if ('count' in item && 'elementLayout' in item) {
-        const field = fields[item.property];
-        if (Array.isArray(field)) {
-          return field.length * getItemAlloc(item.elementLayout);
-        }
-      } else if (item.property != undefined && item instanceof CString) {
-        return fields[item.property].length * 2;
-      }
-
-      // Couldn't determine allocated size of layout
-      console.log('Couldnt determine allocated size of layout', item);
-      
-      return 0;
-    };
-  
-    let alloc = 0;
-    type.fields.forEach((item: any) => {
-      alloc += getItemAlloc(item);
-    });
-  
-    return alloc;
-  }
