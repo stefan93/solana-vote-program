@@ -1,25 +1,31 @@
-import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { VoteProgram } from "../../src/vote";
 import { VotingOption } from "../../src/instructions"
 import { getKeypair, airDrop, establishConnection } from "./testUtils";
+import { VoteAPI } from "../../src/api";
 
 
 test('voting: create', async () => {
     let connection = await establishConnection();
     let acc1 = getKeypair("acc1");
 
+    let api = new VoteAPI(connection);
+
     if (await connection.getBalance(acc1.publicKey) < 5 * LAMPORTS_PER_SOL) {
         await airDrop(connection, acc1.publicKey, 10 * LAMPORTS_PER_SOL);
-     }
- 
+    }
 
-    let instr = VoteProgram.createVoting('color_voting1', 'Pick a color?', [
-         new VotingOption({counter: 3, id: 1, description: 'red'}), new VotingOption({counter: 4, id: 2, description: 'blue'})], 
-         acc1.publicKey);
+    await api.createVoting(
+        acc1, 
+        'color_voting1', 
+        'Pick a color?', 
+        [
+            new VotingOption({counter: 3, id: 1, description: 'red'}), 
+            new VotingOption({counter: 4, id: 2, description: 'blue'})
+        ]
+    );
 
-    let res = await sendAndConfirmTransaction(connection, new Transaction().add(instr), [acc1]);
-
-    let accInfo = await VoteProgram.readAccountData(connection, acc1.publicKey);
+    let accInfo = await api.readVoteAccount(acc1.publicKey);
 
     expect(accInfo).toMatchObject({
         votingUid: 'color_voting1',
@@ -36,21 +42,16 @@ test('voting: vote', async () => {
     let votingOwner = getKeypair("acc1");
     let voter = getKeypair("acc2");
 
+    let api = new VoteAPI(connection);
+
     if (await connection.getBalance(voter.publicKey) < 5 * LAMPORTS_PER_SOL) {
         await airDrop(connection, voter.publicKey, 10 * LAMPORTS_PER_SOL);
      }
  
+   
+    await api.vote(votingOwner.publicKey, voter, 1);
 
-    let pdaAndBumb = VoteProgram.getPdaPubkey(votingOwner.publicKey);
-
-    let instr = VoteProgram.vote(pdaAndBumb[0], voter.publicKey, votingOwner.publicKey, 1);
-
-    let res = await sendAndConfirmTransaction(connection,
-        new Transaction().add(instr),
-        [voter]
-    );
-
-    let accInfo = await VoteProgram.readAccountData(connection, votingOwner.publicKey);
+    let accInfo = await api.readVoteAccount(votingOwner.publicKey);
 
     expect(accInfo).toMatchObject({
         votingUid: 'color_voting1',
