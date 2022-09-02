@@ -9,9 +9,9 @@ export class VoteProgram {
     static programId: PublicKey = new PublicKey('AYJ7F7tPhvUu6gUucew7AJqhasTEx8tH3UF9GAuyfQQz');
 
 
-    static createVoting(votingUid: string, votingName: string, votingOptions: VotingOption[], owner: PublicKey) : TransactionInstruction {
+    static createVoting(createVotingInstruction: CreateVotingInstruction, owner: PublicKey) : TransactionInstruction {
            
-        const buffer = serialize(INSTRUCTION_SCHEMA, new CreateVotingInstruction({votingUid: votingUid, votingName: votingName, votingOptions: votingOptions}));
+        const buffer = serialize(INSTRUCTION_SCHEMA, createVotingInstruction);
         let pda = this.getPdaPubkey(owner)[0];
 
         return new TransactionInstruction({

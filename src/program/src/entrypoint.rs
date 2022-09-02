@@ -4,10 +4,10 @@ use std::ascii::escape_default;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint, entrypoint::ProgramResult, pubkey::Pubkey,
-    msg, declare_id
+    msg, declare_id, program_error::PrintProgramError
 };
 
-use crate::{processor::Processor};
+use crate::{processor::Processor, errors::VoteProgramError};
 
 declare_id!("AYJ7F7tPhvUu6gUucew7AJqhasTEx8tH3UF9GAuyfQQz");
 
@@ -19,10 +19,10 @@ fn process_instruction<'a>(
     instruction_data: &[u8],
 ) -> ProgramResult {
     msg!("program_id: {}", program_id);
-    msg!("data: {}", show(instruction_data));
+    // msg!("data: {}", show(instruction_data));
 
     if let Err(error) = Processor::process_instruction(program_id, accounts, instruction_data) {
-        msg!("Error {:?}", error);
+        error.print::<VoteProgramError>();
         return Err(error);
     }
     

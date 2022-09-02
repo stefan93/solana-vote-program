@@ -6,7 +6,7 @@
   "author": "",
   "license": "MIT",
   "scripts": {
-    "start": "ts-node src/client/main.ts",
+    "start": "ts-node src/client/src/main.ts",
     "start-with-test-validator": "start-server-and-test 'solana-test-validator --reset --quiet' http://localhost:8899/health start",
     "test-validator": "start-server-and-test 'solana-test-validator --reset --quiet' http://localhost:8899/health",
     "lint": "eslint --ext .ts src/client/* && prettier --check \"src/client/**/*.ts\"",
@@ -21,8 +21,7 @@
     "build-deploy": "cargo build-bpf --manifest-path=./src/program/Cargo.toml --bpf-out-dir=dist/program && solana program deploy /Users/stefanpantic/private/projects/rust/token/dist/program/token_program.so",
     "integration-test": "npm run test-validator build-deploy start",
     "test": "npm run test:e2e",
-    "test:e2e": "start-server-and-test 'solana-test-validator -r -q' http://localhost:8899/health 'npm run build-deploy && jest test/e2e ' ",
-    "foo": ""
+    "test:e2e": "start-server-and-test 'solana-test-validator -r -q' http://localhost:8899/health 'npm run build-deploy && jest test/e2e --runInBand --detectOpenHandles' "
   },
   "dependencies": {
     "@solana/web3.js": "^1.33.0",

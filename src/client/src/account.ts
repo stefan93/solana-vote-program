@@ -1,11 +1,15 @@
 export class VotingAccount {
     votingUid: String;
     votingName: String;
+    startDate: number;
+    endDate: number;
     votingOptions: VotingOptionAccount[];
 
-    constructor(data: {votingUid: String, votingName: String, votingOptions: VotingOptionAccount[]}) {
+    constructor(data: {votingUid: String, votingName: String, startDate: number, endDate: number, votingOptions: VotingOptionAccount[]}) {
       this.votingUid = data.votingUid;
       this.votingName = data.votingName;
+      this.startDate = data.startDate;
+      this.endDate = data.endDate;
       this.votingOptions = data.votingOptions;
     }
 }
@@ -29,6 +33,8 @@ export const ACCOUNT_SCHEMA = new Map<any, any>([
           fields: [
             ['votingUid', 'string'], 
             ['votingName', 'string'], 
+            ['startDate', 'u64'], 
+            ['endDate', 'u64'], 
             ['votingOptions',  [VotingOptionAccount] ]
           ]
       }, 

@@ -15,12 +15,16 @@ export class VoteProgramInstruction {
 export class CreateVotingInstruction extends VoteProgramInstruction {
     votingUid: String;
     votingName: String;
+    startDate: number;
+    endDate: number;
     votingOptions: VotingOption[];
 
-    constructor(data: {votingUid: String, votingName: String, votingOptions: VotingOption[]}) {
+    constructor(data: {votingUid: String, votingName: String, startDate: number, endDate: number, votingOptions: VotingOption[]}) {
       super({instruction: VoteInstructionType.CreateVoting})
       this.votingUid = data.votingUid;
       this.votingName = data.votingName;
+      this.startDate = data.startDate;
+      this.endDate = data.endDate;
       this.votingOptions = data.votingOptions;
     }
 }
@@ -46,6 +50,8 @@ export const INSTRUCTION_SCHEMA = new Map<any, any>([
             ['instruction', 'u8'], 
             ['votingUid', 'string'], 
             ['votingName', 'string'], 
+            ['startDate', 'u64'], 
+            ['endDate', 'u64'], 
             ['votingOptions',  [VotingOption] ]
           ]
       }, 

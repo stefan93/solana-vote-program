@@ -1,6 +1,6 @@
 import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
 import { VotingAccount } from "./account";
-import { VotingOption } from "./instructions";
+import { CreateVotingInstruction, VotingOption } from "./instructions";
 import { VoteProgram } from "./vote";
 
 export class VoteAPI {
@@ -10,13 +10,9 @@ export class VoteAPI {
         this.connection = _connecton;
     }
 
-   public async createVoting(owner: Keypair, votingUid: string, votingDescription: string, votingOptions: VotingOption[]) : Promise<string> {
+   public async createVoting(owner: Keypair, createVotingInstruction: CreateVotingInstruction) : Promise<string> {
 
-    let instr = VoteProgram.createVoting(votingUid, 
-        votingDescription, 
-        votingOptions, 
-        owner.publicKey
-        );
+    let instr = VoteProgram.createVoting(createVotingInstruction, owner.publicKey);
 
     return await sendAndConfirmTransaction(this.connection, new Transaction().add(instr), [owner]);
 
