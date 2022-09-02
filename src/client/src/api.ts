@@ -18,8 +18,8 @@ export class VoteAPI {
 
    } 
 
-   public async vote(votingOwner: PublicKey, voter: Keypair, votingOptionId: number) : Promise<string> {
-    let pdaAndBumb = VoteProgram.getPdaPubkey(votingOwner);
+   public async vote(votingOwner: PublicKey, votingUid: string, voter: Keypair, votingOptionId: number) : Promise<string> {
+    let pdaAndBumb = VoteProgram.getPdaPubkey(votingOwner, votingUid);
 
     let instr = VoteProgram.vote(pdaAndBumb[0], voter.publicKey, votingOwner, votingOptionId);
 
@@ -30,8 +30,8 @@ export class VoteAPI {
 
    }
 
-   public async readVoteAccount(votingOwner: PublicKey) : Promise<VotingAccount> {
-    return await VoteProgram.readAccountData(this.connection, votingOwner);
+   public async readVoteAccount(votingOwner: PublicKey, votingUid: string) : Promise<VotingAccount> {
+    return await VoteProgram.readAccountData(this.connection, votingOwner, votingUid);
    }
     
 }

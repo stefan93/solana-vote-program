@@ -18,6 +18,7 @@ use crate::{
     state::{VotingAccount}, errors::VoteProgramError,
 };
 
+
 pub struct Processor;
 
 impl Processor {
@@ -52,7 +53,7 @@ impl Processor {
 
                 Processor::process_create_voting(
                     program_id,
-                    voting_uid,
+                    &voting_uid,
                     voting_name,
                     voting_options,
                     start_date,
@@ -78,7 +79,7 @@ impl Processor {
 
     fn process_create_voting<'a>(
         program_id: &Pubkey,
-        voting_uid: String,
+        voting_uid: &String,
         voting_name: String,
         voting_options: Vec<VotingOption>,
         start_date: UnixTimestamp,
@@ -91,14 +92,13 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let (pda_pubkey, bump_seed) =
-            Pubkey::find_program_address(&[&owner.key.to_bytes()[..32]], program_id);
+        let (pda_pubkey, bump_seed) = Self::get_voting_pda_and_bump(owner, &voting_uid, program_id);
+
         msg!("pda pubkey {}, bump {}", pda_pubkey.to_string(), bump_seed);
 
         if !pda_pubkey.eq(pda.key) {
             return Err(VoteProgramError::WrongPdaKey.into());
         }
-
 
         if !pda.data_is_empty() {
             return Err(ProgramError::AccountAlreadyInitialized);
@@ -118,7 +118,7 @@ impl Processor {
         }
 
         let mut voting_account = VotingAccount {
-            uid: voting_uid,
+            uid: voting_uid.to_string(),
             voting_name: voting_name,
             voting_options: Vec::new(),
             start_date: start_date,
@@ -152,7 +152,7 @@ impl Processor {
         invoke_signed(
             &create_acc_ins,
             &[pda.clone(), owner.clone(), sys_program.clone()],
-            &[&[&owner.key.to_bytes()[..32], &[bump_seed]]],
+            &[&[&owner.key.to_bytes()[..32], voting_uid.as_bytes(), b"voting", &[bump_seed]]],
         )?;
 
         voting_account.serialize(&mut pda.try_borrow_mut_data()?.as_mut())?;
@@ -167,16 +167,9 @@ impl Processor {
         voting_pda: &'a AccountInfo<'a>,
         voting_option_id: u8,
     ) -> ProgramResult {
+
         if !voter.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        let (pda_pubkey, bump_seed) =
-            Pubkey::find_program_address(&[&owner.key.to_bytes()[..32]], program_id);
-        msg!("pda pubkey {}, bump {}", pda_pubkey.to_string(), bump_seed);
-
-        if !pda_pubkey.eq(voting_pda.key) {
-            return Err(VoteProgramError::WrongPdaKey.into());
         }
 
         if voting_pda.data_is_empty() {
@@ -185,6 +178,12 @@ impl Processor {
 
         // read voting pda data
         let mut voting_account = VotingAccount::try_from_slice(&mut voting_pda.data.borrow_mut())?;
+
+        let (pda_pubkey, _bump_seed) = Self::get_voting_pda_and_bump(owner, &voting_account.uid, program_id);
+
+        if !pda_pubkey.eq(voting_pda.key) {
+            return Err(VoteProgramError::WrongPdaKey.into());
+        }
 
         let target_index = voting_account
             .voting_options
@@ -211,5 +210,11 @@ impl Processor {
         voting_account.serialize(&mut voting_pda.data.borrow_mut().as_mut())?;
 
         Ok(())
+    }
+
+    fn get_voting_pda_and_bump(owner: &AccountInfo, voting_uid: &String, program_id: &Pubkey) -> (Pubkey, u8) {
+
+        let seeds = &[&owner.key.to_bytes()[..32], voting_uid.as_bytes(), b"voting"];      
+        return Pubkey::find_program_address(seeds, program_id);
     }
 }

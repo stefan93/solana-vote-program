@@ -12,7 +12,7 @@ export class VoteProgram {
     static createVoting(createVotingInstruction: CreateVotingInstruction, owner: PublicKey) : TransactionInstruction {
            
         const buffer = serialize(INSTRUCTION_SCHEMA, createVotingInstruction);
-        let pda = this.getPdaPubkey(owner)[0];
+        let pda = this.getPdaPubkey(owner, createVotingInstruction.votingUid.toString())[0];
 
         return new TransactionInstruction({
             programId: this.programId,
@@ -59,12 +59,14 @@ export class VoteProgram {
       });
     }
 
-    static getPdaPubkey(votingOwner: PublicKey) : [PublicKey, number] {
-      return PublicKey.findProgramAddressSync([votingOwner.toBytes()], this.programId);
+    static getPdaPubkey(votingOwner: PublicKey, voting_uid: string) : [PublicKey, number] {
+      let encoder = new TextEncoder();
+      let seeds = [votingOwner.toBytes(), encoder.encode(voting_uid), encoder.encode("voting")];
+      return PublicKey.findProgramAddressSync(seeds, this.programId);
     }
 
-    static async readAccountData(connection: Connection, owner: PublicKey) : Promise<VotingAccount> {
-      let accInfo = await connection.getAccountInfo(VoteProgram.getPdaPubkey(owner)[0]);
+    static async readAccountData(connection: Connection, owner: PublicKey, votingUid: string) : Promise<VotingAccount> {
+      let accInfo = await connection.getAccountInfo(VoteProgram.getPdaPubkey(owner, votingUid)[0]);
       if (accInfo == null) {
         throw new Error("Account info is null");
       }

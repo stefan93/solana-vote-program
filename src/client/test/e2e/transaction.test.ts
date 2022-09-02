@@ -69,7 +69,7 @@ test('create sucess', async () => {
     );
 
 
-    let accInfo = await api.readVoteAccount(acc1.publicKey);
+    let accInfo = await api.readVoteAccount(acc1.publicKey, "color_voting1");
 
     expect(accInfo).toMatchObject({
         votingUid: 'color_voting1',
@@ -86,9 +86,9 @@ test('vote success', async () => {
     let votingOwner = getKeypair("acc1");
     let voter = getKeypair("acc2");
 
-    await printMsg(async () => await api.vote(votingOwner.publicKey, voter, 1));
+    await printMsg(async () => await api.vote(votingOwner.publicKey, "color_voting1", voter, 1));
 
-    let accInfo = await api.readVoteAccount(votingOwner.publicKey);
+    let accInfo = await api.readVoteAccount(votingOwner.publicKey, "color_voting1");
 
     expect(accInfo).toMatchObject({
         votingUid: 'color_voting1',
