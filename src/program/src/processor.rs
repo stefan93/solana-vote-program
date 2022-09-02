@@ -149,10 +149,14 @@ impl Processor {
         );
 
         msg!("Invoking signed create account");
+        
+        let bump = &[bump_seed];
+        let pda_sign_seed = Self::get_pda_sign(owner.key.as_ref(), voting_uid, bump);
+
         invoke_signed(
             &create_acc_ins,
             &[pda.clone(), owner.clone(), sys_program.clone()],
-            &[&[&owner.key.to_bytes()[..32], voting_uid.as_bytes(), b"voting", &[bump_seed]]],
+            &[&pda_sign_seed],
         )?;
 
         voting_account.serialize(&mut pda.try_borrow_mut_data()?.as_mut())?;
@@ -214,7 +218,25 @@ impl Processor {
 
     fn get_voting_pda_and_bump(owner: &AccountInfo, voting_uid: &String, program_id: &Pubkey) -> (Pubkey, u8) {
 
-        let seeds = &[&owner.key.to_bytes()[..32], voting_uid.as_bytes(), b"voting"];      
-        return Pubkey::find_program_address(seeds, program_id);
+        let seeds = Self::get_seed(owner.key.as_ref(), voting_uid);  
+        return Pubkey::find_program_address(&seeds, program_id);
     }
+
+    fn get_seed<'a>(owner_key_bytes: &'a[u8], voting_uid: &'a String,) -> [&'a [u8]; 3] { 
+        [
+            owner_key_bytes, 
+            voting_uid.as_bytes(), 
+            b"voting"
+        ]
+    }
+
+    fn get_pda_sign<'a>(owner_key_bytes: &'a[u8], voting_uid: &'a String, bump: &'a[u8]) -> [&'a [u8]; 4] { 
+        [
+            owner_key_bytes, 
+            voting_uid.as_bytes(), 
+            b"voting",
+            bump
+        ]
+    }
+
 }
