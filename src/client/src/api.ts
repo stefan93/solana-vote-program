@@ -1,5 +1,6 @@
-import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, sendAndConfirmTransaction, SendTransactionError, Transaction } from "@solana/web3.js";
 import { VotingAccount } from "./account";
+import { handleError } from "./errors";
 import { CreateVotingInstruction, VotingOption } from "./instructions";
 import { VoteProgram } from "./vote";
 
@@ -14,7 +15,8 @@ export class VoteAPI {
 
     let instr = VoteProgram.createVoting(createVotingInstruction, owner.publicKey);
 
-    return await sendAndConfirmTransaction(this.connection, new Transaction().add(instr), [owner]);
+    return await sendAndConfirmTransaction(this.connection, new Transaction().add(instr), [owner])
+        .catch(handleError);
 
    } 
 
@@ -26,8 +28,7 @@ export class VoteAPI {
     return await sendAndConfirmTransaction(this.connection,
         new Transaction().add(instr),
         [voter]
-    );
-
+    ).catch(handleError);
    }
 
    public async readVoteAccount(votingOwner: PublicKey, votingUid: string) : Promise<VotingAccount> {

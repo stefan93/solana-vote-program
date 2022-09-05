@@ -2,6 +2,7 @@ import { Connection, Keypair, LAMPORTS_PER_SOL, SendTransactionError } from "@so
 import { CreateVotingInstruction, VotingOption } from "../../src/instructions"
 import { getKeypair, airDrop, establishConnection } from "./testUtils";
 import { VoteAPI } from "../../src/api";
+import { ErrorCode, VoteError } from "../../src/errors";
 
 let connection : Connection;
 let acc1 : Keypair;
@@ -43,7 +44,7 @@ test('create start in past', async () => {
                 ]
             })
         );
-    }).rejects.toThrow("custom program error");
+    }).rejects.toThrow();
 
 });
 
