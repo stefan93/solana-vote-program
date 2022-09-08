@@ -1,145 +1,61 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use borsh_size::BorshSize;
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
-    system_instruction,
-    sysvar::Sysvar, clock::{Clock, UnixTimestamp},
+    system_instruction::{self},
+    sysvar::Sysvar, clock::{Clock, UnixTimestamp}, account_info::AccountInfo,
 };
 use std::{convert::TryInto};
 
 use crate::{
-    instruction::{VotingOption, VotingProgramInstruction},
-    state::{VotingAccount}, errors::VoteProgramError,
+    instruction::{VotingOption, CreateVotingAccounts, VoteAccounts},
+    state::{VotingAccount}, errors::VoteProgramError, get_voting_pda_and_bump, get_pda_sign, Validate,
 };
 
 
 pub struct Processor;
 
 impl Processor {
-    pub fn process_instruction<'a>(
-        program_id: &Pubkey,
-        accounts: &'a [AccountInfo<'a>],
-        instruction_data: &[u8],
-    ) -> ProgramResult {
-        msg!("Beginning processing");
-        let instruction =
-            VotingProgramInstruction::try_from_slice(instruction_data).map_err(|e| {
-                msg!("Error {:?}", e);
-                return ProgramError::InvalidInstructionData;
-            })?;
 
-        msg!("Instruction unpacked {:?}", instruction);
-
-        match instruction {
-            VotingProgramInstruction::CreateVoting {
-                voting_uid,
-                voting_name,
-                voting_options,
-                start_date,
-                end_date,
-            } => {
-                msg!("Instruction CreateVoting");
-
-                let acc_iter = &mut accounts.iter();
-                let owner = next_account_info(acc_iter)?;
-                let pda = next_account_info(acc_iter)?;
-                let sys_program = next_account_info(acc_iter)?;
-
-                Processor::process_create_voting(
-                    program_id,
-                    &voting_uid,
-                    voting_name,
-                    voting_options,
-                    start_date,
-                    end_date,
-                    owner,
-                    pda,
-                    sys_program,
-                )?;
-            }
-            VotingProgramInstruction::Vote { voting_option_id } => {
-                msg!("Instruction Vote");
-
-                let acc_iter = &mut accounts.iter();
-                let voter = next_account_info(acc_iter)?;
-                let owner = next_account_info(acc_iter)?;
-                let voting_pda = next_account_info(acc_iter)?;
-
-                Processor::process_vote(program_id, voter, owner, voting_pda, voting_option_id)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn process_create_voting<'a>(
+    pub fn process_create_voting<'a>(
         program_id: &Pubkey,
         voting_uid: &String,
         voting_name: String,
         voting_options: Vec<VotingOption>,
         start_date: UnixTimestamp,
         end_date: UnixTimestamp,
-        owner: &'a AccountInfo<'a>,
-        pda: &'a AccountInfo<'a>,
-        sys_program: &'a AccountInfo<'a>,
+        create_voting_accounts: CreateVotingAccounts
     ) -> ProgramResult {
-        if !owner.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
 
-        let (pda_pubkey, bump_seed) = Self::get_voting_pda_and_bump(owner, &voting_uid, program_id);
+        create_voting_accounts.validate()?;
 
-        msg!("pda pubkey {}, bump {}", pda_pubkey.to_string(), bump_seed);
+        let owner = create_voting_accounts.owner;
+        let sys_program = create_voting_accounts.sys_program;
+        let pda = create_voting_accounts.pda;
 
-        if !pda_pubkey.eq(pda.key) {
-            return Err(VoteProgramError::WrongPdaKey.into());
-        }
+        Self::validate_pda(program_id, owner, pda, voting_uid)?;
 
-        if !pda.data_is_empty() {
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
+        let voting_account = VotingAccount::new(voting_uid.to_string(), voting_name, start_date, end_date, voting_options);
 
-        let clock = Clock::get()?;
-        let now = clock.unix_timestamp;
+        // validate voting account data
+        voting_account.validate()?;
 
-        if start_date.lt(&now) {
-            msg!("Start date in past");
-            return Err(VoteProgramError::StartVotindDateInPast.into());
-        }
-
-        if start_date.gt(&end_date) {
-            msg!("Start date after end date");
-            return Err(VoteProgramError::StartVotingDateAfterEndDate.into());
-        }
-
-        let mut voting_account = VotingAccount {
-            uid: voting_uid.to_string(),
-            voting_name: voting_name,
-            voting_options: Vec::new(),
-            start_date: start_date,
-            end_date: end_date,
-        };
-
-        for input_vo in voting_options {
-            voting_account
-                .voting_options
-                .push(crate::state::VotingOption {
-                    option_id: input_vo.id,
-                    option_description: input_vo.description,
-                    counter: 0,
-                });
-        }
-
+        // create pda account
         let size_of_acc_data = voting_account.calculate_borsh_size();
-
         let min_lamp = Rent::get()?.minimum_balance(size_of_acc_data);
 
-        msg!("Size of acc data {}", size_of_acc_data);
+        if owner.lamports() < min_lamp {
+            msg!("Not enough lamps for rent. Min lamps: {}, has lams: {}", min_lamp, owner.lamports());
+            return Err(ProgramError::InsufficientFunds)
+        }
+
+        let (pda_pubkey, bump_seed) = get_voting_pda_and_bump(owner, &voting_uid, program_id);
+        
         let create_acc_ins = system_instruction::create_account(
             owner.key,
             &pda_pubkey,
@@ -151,7 +67,7 @@ impl Processor {
         msg!("Invoking signed create account");
         
         let bump = &[bump_seed];
-        let pda_sign_seed = Self::get_pda_sign(owner.key.as_ref(), voting_uid, bump);
+        let pda_sign_seed = get_pda_sign(owner.key.as_ref(), voting_uid, bump);
 
         invoke_signed(
             &create_acc_ins,
@@ -164,30 +80,21 @@ impl Processor {
         Ok(())
     }
 
-    fn process_vote<'a>(
+    pub fn process_vote<'a>(
         program_id: &Pubkey,
-        voter: &'a AccountInfo<'a>,
-        owner: &'a AccountInfo<'a>,
-        voting_pda: &'a AccountInfo<'a>,
         voting_option_id: u8,
+        voting_accounts: VoteAccounts
     ) -> ProgramResult {
 
-        if !voter.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
+        voting_accounts.validate()?;
 
-        if voting_pda.data_is_empty() {
-            return Err(ProgramError::UninitializedAccount);
-        }
+        let voting_pda = voting_accounts.voting_pda;
+        let owner = voting_accounts.owner;
 
         // read voting pda data
         let mut voting_account = VotingAccount::try_from_slice(&mut voting_pda.data.borrow_mut())?;
 
-        let (pda_pubkey, _bump_seed) = Self::get_voting_pda_and_bump(owner, &voting_account.uid, program_id);
-
-        if !pda_pubkey.eq(voting_pda.key) {
-            return Err(VoteProgramError::WrongPdaKey.into());
-        }
+        Self::validate_pda(program_id, owner, voting_pda, &voting_account.uid)?;
 
         let target_index = voting_account
             .voting_options
@@ -199,11 +106,11 @@ impl Processor {
         let clock = Clock::get()?;
         let now_ts = clock.unix_timestamp;
 
-        if voting_account.start_date.gt(&now_ts) {
+        if now_ts.lt(&voting_account.start_date) {
             return Err(VoteProgramError::VotingNotStartedYet.into());
         }
 
-        if voting_account.end_date.lt(&now_ts) {
+        if now_ts.gt(&voting_account.end_date) {
             return Err(VoteProgramError::VotingExpired.into());
         }
 
@@ -216,27 +123,14 @@ impl Processor {
         Ok(())
     }
 
-    fn get_voting_pda_and_bump(owner: &AccountInfo, voting_uid: &String, program_id: &Pubkey) -> (Pubkey, u8) {
 
-        let seeds = Self::get_seed(owner.key.as_ref(), voting_uid);  
-        return Pubkey::find_program_address(&seeds, program_id);
+    fn validate_pda(program_id: &Pubkey, owner: &AccountInfo<'_>, voting_pda: &AccountInfo<'_>, voting_uid: &String) -> Result<(), ProgramError> {
+        let (pda_pubkey, _bump_seed) = get_voting_pda_and_bump(owner, voting_uid, program_id);
+        if !pda_pubkey.eq(voting_pda.key) {
+            return Err(VoteProgramError::WrongPdaKey.into());
+        }
+        Ok(())
     }
 
-    fn get_seed<'a>(owner_key_bytes: &'a[u8], voting_uid: &'a String,) -> [&'a [u8]; 3] { 
-        [
-            owner_key_bytes, 
-            voting_uid.as_bytes(), 
-            b"voting"
-        ]
-    }
-
-    fn get_pda_sign<'a>(owner_key_bytes: &'a[u8], voting_uid: &'a String, bump: &'a[u8]) -> [&'a [u8]; 4] { 
-        [
-            owner_key_bytes, 
-            voting_uid.as_bytes(), 
-            b"voting",
-            bump
-        ]
-    }
 
 }
