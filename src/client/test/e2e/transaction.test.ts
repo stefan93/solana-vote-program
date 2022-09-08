@@ -19,6 +19,31 @@ describe('create voting', () => {
         acc1 = await getRndKeypairWithLamports(connection, 10 * LAMPORTS_PER_SOL);
     });
 
+
+    test('create voting uid empty string', async () => {
+
+        let startDate = new Date(), endDate = new Date();
+        startDate.setHours(startDate.getHours() - 1);
+        endDate.setHours(startDate.getHours() + 2);
+
+        await expect(async () => {
+            await api.createVoting(
+                acc1,
+                new CreateVotingInstruction({
+                    votingUid: '',
+                    votingName: 'Pick a color?',
+                    startDate: startDate.valueOf() / 1000,
+                    endDate: endDate.valueOf() / 1000,
+                    votingOptions: [
+                        new VotingOption({ counter: 3, id: 1, description: 'red' }),
+                        new VotingOption({ counter: 4, id: 2, description: 'blue' })
+                    ]
+                })
+            );
+        }).rejects.toThrowError("invalid program argument");
+
+    });
+
     test('create start in past', async () => {
 
         let startDate = new Date(), endDate = new Date();

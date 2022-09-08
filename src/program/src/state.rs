@@ -2,10 +2,14 @@ use std::collections::HashSet;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use borsh_size::BorshSize;
-use solana_program::{clock::{UnixTimestamp, Clock}, program_error::ProgramError, sysvar::Sysvar};
+use solana_program::{clock::{UnixTimestamp, Clock}, program_error::ProgramError, sysvar::Sysvar, msg};
 
-use crate::{errors::VoteProgramError, instruction, Validate};
+use crate::{errors::VoteProgramError, instruction, Validate, check_string_param};
+ 
 
+const VOTING_NAME_MAX_LEN: usize = 200;
+const VOTING_UID_MAX_LEN: usize = 100;
+const VOTIING_OPT_DESCR_MAX_LEN: usize = 500;
 
 
 #[derive(BorshSerialize, BorshDeserialize, BorshSize, Debug)]
@@ -49,15 +53,11 @@ impl VotingAccount {
     }
 }
 
+
 impl Validate for VotingAccount {
     fn validate(&self) -> Result<(), ProgramError> {
-        if self.uid.trim().is_empty() {
-            return Result::Err(ProgramError::InvalidArgument);
-        }
-
-        if self.voting_name.trim().is_empty() {
-            return Result::Err(ProgramError::InvalidArgument);
-        }
+        check_string_param!(self.uid, 1, VOTING_UID_MAX_LEN, return Result::Err(ProgramError::InvalidArgument));
+        check_string_param!(self.voting_name, 1, VOTING_NAME_MAX_LEN, return Result::Err(ProgramError::InvalidArgument));
 
         if self.voting_options.is_empty() {
             return Result::Err(ProgramError::InvalidArgument);
@@ -72,9 +72,7 @@ impl Validate for VotingAccount {
             return Result::Err(VoteProgramError::StartVotingDateAfterEndDate.into());
         }
 
-        if let Err(err) = self.voting_options.validate() {
-            return Result::Err(err);
-        };
+        self.voting_options.validate()?;
 
         Result::Ok(())
     }
@@ -88,6 +86,7 @@ impl Validate for Vec<VotingOption> {
 
         let mut option_ids_set = HashSet::<u8>::new();
 
+        // check for uniqueness
         for opt in self {
             let unique_opt_id = option_ids_set.insert(opt.option_id);
 
@@ -95,9 +94,7 @@ impl Validate for Vec<VotingOption> {
                 return Result::Err(ProgramError::InvalidArgument);
             }
 
-            if let Err(err) = opt.validate() {
-                return Result::Err(err)
-            } 
+            opt.validate()?;
         }
 
         Ok(())
@@ -106,11 +103,9 @@ impl Validate for Vec<VotingOption> {
 
 impl Validate for VotingOption {
     fn validate(&self) -> Result<(), ProgramError> {
-        if self.option_description.trim().is_empty() {
-            return Result::Err(ProgramError::InvalidArgument);
-        }
-
+        check_string_param!(self.option_description, 1, VOTIING_OPT_DESCR_MAX_LEN, return Result::Err(ProgramError::InvalidArgument));
         Ok(())
     }
 }
+
 

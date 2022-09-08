@@ -18,7 +18,7 @@
     "build": "cargo build-bpf --manifest-path=./src/program/Cargo.toml --bpf-out-dir=dist/program",
     "deploy": "solana program deploy /Users/stefanpantic/private/projects/rust/token/dist/program/token_program.so",
     "integration-test": "npm run test-validator build-deploy start",
-    "test": "npm run test:program-rust test:e2e",
+    "test": "npm run test:program-rust && npm run test:e2e",
     "test:program-rust": "cargo test --manifest-path=./src/program/Cargo.toml",
     "test:e2e": "start-server-and-test 'solana-test-validator -r -q' http://localhost:8899/health 'npm run deploy && jest test/e2e --detectOpenHandles' "
   },

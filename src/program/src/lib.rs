@@ -5,6 +5,7 @@ pub mod processor;
 pub mod state;
 pub mod instruction;
 pub mod errors;
+pub mod utils;
 
 pub trait Validate {
     fn validate(&self) -> Result<(), ProgramError>;
