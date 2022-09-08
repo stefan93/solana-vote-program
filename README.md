@@ -7,5 +7,10 @@ Simple vote program for solana.
 - Program Instructions:
   - Create Voting
   - Vote
+- Client API see: ./src/client/src/api.ts
+  - VoteAPI.createVoting()
+  - VoteAPI.vote()
+  - VoteAPI.readVoteAccount()
+- TODO: everyone can vote, restrict with custom tokens...
 
 (note: This is just small exercies, nothig more...)
