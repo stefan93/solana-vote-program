@@ -238,6 +238,7 @@ dependencies = [
 [[package]]
 name = "borsh-size"
 version = "0.0.1"
+source = "git+https://github.com/stefan93/borsh-size-rs/#92cba13fa03448d63a9eb88a8dd665f3ba7762f5"
 dependencies = [
  "borsh-size-derive",
 ]
@@ -245,6 +246,7 @@ dependencies = [
 [[package]]
 name = "borsh-size-derive"
 version = "0.0.1"
+source = "git+https://github.com/stefan93/borsh-size-rs/#92cba13fa03448d63a9eb88a8dd665f3ba7762f5"
 dependencies = [
  "proc-macro2 1.0.43",
  "quote 1.0.21",

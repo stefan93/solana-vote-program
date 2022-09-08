@@ -15,7 +15,7 @@ no-entrypoint = []
 borsh = "0.9.3"
 borsh-derive = "0.9.1"
 solana-program = "~1.8.14"
-borsh-size = { path = "../../../borsh-size-rs/borsh_size" }
+borsh-size = { git = "https://github.com/stefan93/borsh-size-rs/" }
 thiserror = "1.0"
 num_enum = "0.5.4"
 num-derive = "0.3"
